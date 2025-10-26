@@ -1,6 +1,18 @@
-name = "{{project-name}}"
+name = "backend"
 main = "build/index.js"
-compatibility_date = "{{ "now" | date: "%Y-%m-%d" }}"
+compatibility_date = "2025-10-25"
 
 [build]
 command = "cargo install -q worker-build && worker-build --release"
+
+[[d1_databases]]
+binding = "cf_ai_assistant_db"
+database_name = "cf-ai-assistant-db"
+database_id = "e219ddbb-aa16-458a-bf91-ae61a10c9e74"
+migrations_dir = "migrations/cf-ai"
+
+[[d1_databases]]
+binding = "my_app_db"
+database_name = "my-app-db"
+database_id = "019ffc20-06bf-4f67-a6ad-777632558535"
+migrations_dir = "migrations/app"
