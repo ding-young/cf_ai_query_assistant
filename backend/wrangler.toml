@@ -16,3 +16,7 @@ binding = "my_app_db"
 database_name = "my-app-db"
 database_id = "019ffc20-06bf-4f67-a6ad-777632558535"
 migrations_dir = "migrations/app"
+
+[ai]
+binding = "ai"
+remote = true
