@@ -23,6 +23,7 @@ npm run dev
 ```
 
 ## Demo
+![demo](https://github.com/user-attachments/assets/993ce2d3-8408-4771-905d-5a08b1b8b14e)
 
 ## Further Improvements
 - [] Rearchitecture with RAG, support schema upload
