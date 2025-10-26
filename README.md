@@ -1,5 +1,5 @@
 # cf_ai_query_assistant
-AI-powered natural-language-to-SQL assistant built with Cloudflare Workers, Workers AI, and D1 using ![workers-rs](https://github.com/cloudflare/workers-rs). 
+AI-powered natural-language-to-SQL assistant built with Cloudflare Workers, Workers AI, and D1 using [workers-rs](https://github.com/cloudflare/workers-rs). 
 Type a question, get generated SQL, run it against D1, and browse recent query history. Make sure your wrangler.toml has the required D1 and AI bindings before running.
 
 ## Run locally 
