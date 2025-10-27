@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::Value;
 use worker::*;
 
 #[derive(Deserialize)]
@@ -37,7 +37,7 @@ trait Cors {
 impl Cors for worker::Result<Response> {
     fn with_cors(self) -> Self {
         let response = self?;
-        let mut headers = response.headers().clone();
+        let headers = response.headers().clone();
         headers.set("Access-Control-Allow-Origin", "http://localhost:3000")?;
         headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")?;
         headers.set("Access-Control-Allow-Headers", "Content-Type")?;
@@ -46,7 +46,7 @@ impl Cors for worker::Result<Response> {
 }
 
 async fn cors_preflight(_req: Request, _ctx: RouteContext<()>) -> worker::Result<Response> {
-    let mut headers = Headers::new();
+    let headers = Headers::new();
     headers.set("Access-Control-Allow-Origin", "http://localhost:3000")?;
     headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")?;
     headers.set("Access-Control-Allow-Headers", "Content-Type")?;
@@ -70,10 +70,8 @@ async fn post_nl(mut req: Request, ctx: RouteContext<()>) -> worker::Result<Resp
         .unwrap_or_else(|| "@cf/meta/llama-3.1-8b-instruct-fast".to_string());
     let ai = ctx.env.ai("ai")?;
 
-    let system_prompt = format!(
-        "You are a SQL generator for given user prompt. Output ONLY a SQL query for D1 (SQLite dialect).\n
-        Do not include any explanations, markdown, or other text.\nReturn SQL only.",
-    );
+    let system_prompt = "You are a SQL generator for given user prompt. Output ONLY a SQL query for D1 (SQLite dialect).\n
+        Do not include any explanations, markdown, or other text.\nReturn SQL only.".to_string();
 
     let inputs = AiChatInput {
         messages: vec![
