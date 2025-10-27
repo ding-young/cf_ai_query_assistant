@@ -128,6 +128,11 @@ export default function Home() {
     }
   }, [dataRequest, fetchHistory])
 
+  const handleSqlEdit = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setGeneratedSQL(e.target.value);
+    setCurrentId(null); 
+  };
+
   const handleRunSQL = useCallback(async () => {
     if (!generatedSQL.trim()) {
       setExecutionError("Generate or paste SQL before running it.")
@@ -152,8 +157,21 @@ export default function Home() {
       })
 
       if (!response.ok) {
-        const message = await response.text()
-        throw new Error(message || `Execution failed (${response.status})`)
+        const message = (await response.text()) || `Execution failed (${response.status})`
+
+        if (response.status === 400 && message.startsWith("SQL Syntax Error:")) {
+          setExecutionError(`We couldn't run the query because of a syntax issue:\n${message.replace("SQL Syntax Error: ", "")}`)
+          return
+        }
+
+        if (response.status === 403) {
+          setExecutionError(
+            "The query was blocked for safety. Remove statements such as DROP, ALTER, TRUNCATE, or CREATE DATABASE.",
+          )
+          return
+        }
+
+        throw new Error(message)
       }
 
       const data = (await response.json()) as unknown
@@ -229,7 +247,7 @@ export default function Home() {
           <CardContent>
             <Textarea
               value={generatedSQL}
-              readOnly
+              onChange={handleSqlEdit}
               placeholder="Generated SQL will appear here."
               className="min-h-[120px] font-mono text-sm bg-muted resize-none"
             />

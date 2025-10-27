@@ -25,6 +25,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+ "sqlparser",
  "worker",
  "worker-macros",
 ]
@@ -482,6 +483,15 @@ name = "smallvec"
 version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
+
+[[package]]
+name = "sqlparser"
+version = "0.59.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4591acadbcf52f0af60eafbb2c003232b2b4cd8de5f0e9437cb8b1b59046cc0f"
+dependencies = [
+ "log",
+]
 
 [[package]]
 name = "stable_deref_trait"

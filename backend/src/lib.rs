@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sqlparser::{ast::Statement, dialect::SQLiteDialect, parser::Parser};
 use worker::*;
 
 #[derive(Deserialize)]
@@ -135,6 +136,35 @@ async fn post_exec_sql(mut req: Request, ctx: RouteContext<()>) -> worker::Resul
     };
 
     let sql_to_run = request_data.sql_to_run;
+
+    // Parse SQL and return error if syntax is invalid
+    let dialect = SQLiteDialect {};
+    let parse_result = Parser::parse_sql(&dialect, &sql_to_run);
+    let statements = match parse_result {
+        Ok(stmts) => stmts,
+        Err(e) => {
+            return Response::error(format!("SQL Syntax Error: {}", e), 400).with_cors();
+        }
+    };
+
+    // Block dangerous statements
+    for stmt in &statements {
+        match stmt {
+            Statement::Drop { .. }
+            | Statement::AlterTable { .. }
+            | Statement::AlterSchema { .. }
+            | Statement::AlterRole { .. }
+            | Statement::Truncate { .. }
+            | Statement::CreateRole { .. }
+            | Statement::CreateDatabase { .. } => {
+                return Response::error(
+                 "Your SQL contains operations that are not allowed for safety reasons (e.g., DROP, ALTER, TRUNCATE, etc.).",
+                    403
+            ).with_cors();
+            }
+            _ => {}
+        }
+    }
 
     let user_db = ctx.env.d1("my_app_db")?;
     let query_result: D1Result = match user_db.prepare(&sql_to_run).all().await {

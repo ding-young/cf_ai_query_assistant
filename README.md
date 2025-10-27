@@ -27,5 +27,5 @@ npm run dev
 
 ## Further Improvements
 - [] Rearchitecture with RAG, support schema upload
-- [] Invalidate certain schemas via sqlparser-rs 
+- [x] Invalidate certain schemas via sqlparser-rs 
 - [] Refactor code (CORS, cargo clippy)
