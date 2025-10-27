@@ -2,7 +2,14 @@
 AI-powered natural-language-to-SQL assistant built with Cloudflare Workers, Workers AI, and D1 using [workers-rs](https://github.com/cloudflare/workers-rs). 
 Type a question, get generated SQL, run it against D1, and browse recent query history. Make sure your wrangler.toml has the required D1 and AI bindings before running.
 
-## Run locally 
+## Demo
+A live demo is deployed and accessible at: https://cf-ai-query-assistant.pages.dev
+
+
+![demo](https://github.com/user-attachments/assets/993ce2d3-8408-4771-905d-5a08b1b8b14e)
+  
+
+## Or run locally 
 ```bash
 # Create D1 databases. Note that migrations/ include dummy data as well. 
 ## db for saving query history 
@@ -22,10 +29,13 @@ npm install
 npm run dev
 ```
 
-## Demo
-![demo](https://github.com/user-attachments/assets/993ce2d3-8408-4771-905d-5a08b1b8b14e)
+## Notes
+
+This application assumes a target database (Cloudflare D1) is already provisioned and connected to the backend Worker.
+
+For security, the backend actively blocks destructive SQL operations (e.g., DROP TABLE, ALTER TABLE, TRUNCATE). Only read-only queries (like SELECT) and safe write operations (like INSERT, UPDATE) are permitted.
 
 ## Further Improvements
 - [] Rearchitecture with RAG, support schema upload
 - [x] Invalidate certain schemas via sqlparser-rs 
-- [] Refactor code (CORS, cargo clippy)
+- [x] Refactor code (CORS, cargo clippy)
