@@ -35,7 +35,23 @@ This application assumes a target database (Cloudflare D1) is already provisione
 
 For security, the backend actively blocks destructive SQL operations (e.g., DROP TABLE, ALTER TABLE, TRUNCATE). Only read-only queries (like SELECT) and safe write operations (like INSERT, UPDATE) are permitted.
 
+## Diagram
+```ASCII
+                                                       ┌─────────────┐
+                                                       │Cloudflare D1│
+                                                       │SQL database │
+                                                       └─▲───────────┘
+┌──────────────────┐       ┌──────────────────┐          │            
+│ Cloudflare Pages ├──────►│Cloudflare Workers├──────────┘            
+│(Next.js frontend)│       │   (workers-rs)   ├──────────┐            
+└──────────────────┘       └──────────────────┘        ┌─▼───────────┐
+                                                       │ Cloudflare  │
+                                                       │ Workers AI  │
+                                                       └─────────────┘
+```
+
 ## Further Improvements
 - [] Rearchitecture with RAG, support schema upload
 - [x] Invalidate certain schemas via sqlparser-rs 
 - [x] Refactor code (CORS, cargo clippy)
+
