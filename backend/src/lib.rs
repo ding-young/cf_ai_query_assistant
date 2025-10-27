@@ -1,7 +1,18 @@
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlparser::{ast::Statement, dialect::SQLiteDialect, parser::Parser};
 use worker::*;
+
+const ALLOWED_ORIGINS: [&str; 2] = [
+    "https://cf-ai-query-assistant.pages.dev",
+    "http://localhost:3000",
+];
+static BASE_CORS: Lazy<Cors> = Lazy::new(|| {
+    Cors::default()
+        .with_methods(vec![Method::Get, Method::Post, Method::Options])
+        .with_allowed_headers(["Content-Type"])
+});
 
 #[derive(Deserialize)]
 struct Nl2SqlRequest {
@@ -30,36 +41,30 @@ struct AiChatInput<'a> {
     messages: Vec<AiMessage<'a>>,
 }
 
-// TODO replace with workers-rs Cors impl
-trait Cors {
-    fn with_cors(self) -> worker::Result<Response>;
-}
-
-impl Cors for worker::Result<Response> {
-    fn with_cors(self) -> Self {
-        let response = self?;
-        let headers = response.headers().clone();
-        headers.set("Access-Control-Allow-Origin", "http://localhost:3000")?;
-        headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")?;
-        headers.set("Access-Control-Allow-Headers", "Content-Type")?;
-        Ok(response.with_headers(headers))
+fn create_cors(req: &Request) -> worker::Result<Cors> {
+    let mut cors = BASE_CORS.clone();
+    if let Some(origin_header) = req.headers().get("Origin")?
+        && ALLOWED_ORIGINS.contains(&origin_header.as_str())
+    {
+        cors = cors.with_origins(vec![origin_header]);
     }
+
+    Ok(cors)
 }
 
-async fn cors_preflight(_req: Request, _ctx: RouteContext<()>) -> worker::Result<Response> {
-    let headers = Headers::new();
-    headers.set("Access-Control-Allow-Origin", "http://localhost:3000")?;
-    headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")?;
-    headers.set("Access-Control-Allow-Headers", "Content-Type")?;
-
-    Ok(Response::empty()?.with_status(204).with_headers(headers))
+#[inline]
+async fn cors_preflight(req: Request, _ctx: RouteContext<()>) -> worker::Result<Response> {
+    Response::empty()?
+        .with_status(204)
+        .with_cors(&create_cors(&req)?)
 }
 
 async fn post_nl(mut req: Request, ctx: RouteContext<()>) -> worker::Result<Response> {
     let request_data: Nl2SqlRequest = match req.json().await {
         Ok(data) => data,
         Err(e) => {
-            return Response::error(format!("Bad Request: {}", e), 400).with_cors();
+            return Response::error(format!("Bad Request: {}", e), 400)?
+                .with_cors(&create_cors(&req)?);
         }
     };
 
@@ -92,7 +97,8 @@ async fn post_nl(mut req: Request, ctx: RouteContext<()>) -> worker::Result<Resp
         Err(e) => {
             // TODO: Proper logging
             console_log!("Failed to run model: {e}");
-            return Response::error(format!("AI Error: {}", e), 500).with_cors();
+            return Response::error(format!("AI Error: {}", e), 500)?
+                .with_cors(&create_cors(&req)?);
         }
     };
     let sql = ai_response.response;
@@ -111,7 +117,8 @@ async fn post_nl(mut req: Request, ctx: RouteContext<()>) -> worker::Result<Resp
             // TODO: Proper logging
             console_log!("Failed to save history and get ID");
 
-            return Response::error("Failed to save history and get ID", 500).with_cors();
+            return Response::error("Failed to save history and get ID", 500)?
+                .with_cors(&create_cors(&req)?);
         }
     };
     let final_response = Nl2SqlResponse {
@@ -119,7 +126,7 @@ async fn post_nl(mut req: Request, ctx: RouteContext<()>) -> worker::Result<Resp
         history_id: new_id,
     };
 
-    Response::from_json(&final_response).with_cors()
+    Response::from_json(&final_response)?.with_cors(&create_cors(&req)?)
 }
 
 #[derive(Deserialize)]
@@ -131,7 +138,8 @@ async fn post_exec_sql(mut req: Request, ctx: RouteContext<()>) -> worker::Resul
     let request_data: ExecuteRequest = match req.json().await {
         Ok(data) => data,
         Err(e) => {
-            return Response::error(format!("Bad Request: {}", e), 400).with_cors();
+            return Response::error(format!("Bad Request: {}", e), 400)?
+                .with_cors(&create_cors(&req)?);
         }
     };
 
@@ -143,7 +151,8 @@ async fn post_exec_sql(mut req: Request, ctx: RouteContext<()>) -> worker::Resul
     let statements = match parse_result {
         Ok(stmts) => stmts,
         Err(e) => {
-            return Response::error(format!("SQL Syntax Error: {}", e), 400).with_cors();
+            return Response::error(format!("SQL Syntax Error: {}", e), 400)?
+                .with_cors(&create_cors(&req)?);
         }
     };
 
@@ -160,7 +169,7 @@ async fn post_exec_sql(mut req: Request, ctx: RouteContext<()>) -> worker::Resul
                 return Response::error(
                  "Your SQL contains operations that are not allowed for safety reasons (e.g., DROP, ALTER, TRUNCATE, etc.).",
                     403
-            ).with_cors();
+            )?.with_cors(&create_cors(&req)?);
             }
             _ => {}
         }
@@ -170,7 +179,8 @@ async fn post_exec_sql(mut req: Request, ctx: RouteContext<()>) -> worker::Resul
     let query_result: D1Result = match user_db.prepare(&sql_to_run).all().await {
         Ok(result) => result,
         Err(e) => {
-            return Response::error(format!("SQL Execution Error: {}", e), 400).with_cors();
+            return Response::error(format!("SQL Execution Error: {}", e), 400)?
+                .with_cors(&create_cors(&req)?);
         }
     };
 
@@ -186,7 +196,7 @@ async fn post_exec_sql(mut req: Request, ctx: RouteContext<()>) -> worker::Resul
     }
 
     let results: Vec<Value> = query_result.results()?;
-    Response::from_json(&results).with_cors()
+    Response::from_json(&results)?.with_cors(&create_cors(&req)?)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -198,7 +208,7 @@ struct HistoryEntry {
     created_at: String,
 }
 
-pub async fn get_history(_req: Request, ctx: RouteContext<()>) -> worker::Result<Response> {
+pub async fn get_history(req: Request, ctx: RouteContext<()>) -> worker::Result<Response> {
     let db = ctx.env.d1("cf_ai_assistant_db")?;
     let d1_result = db
         .prepare(
@@ -211,11 +221,12 @@ pub async fn get_history(_req: Request, ctx: RouteContext<()>) -> worker::Result
     let entries: Vec<HistoryEntry> = match d1_result.results() {
         Ok(data) => data,
         Err(e) => {
-            return Response::error(format!("Failed to parse D1 results: {}", e), 500).with_cors();
+            return Response::error(format!("Failed to parse D1 results: {}", e), 500)?
+                .with_cors(&create_cors(&req)?);
         }
     };
 
-    Response::from_json(&entries).with_cors()
+    Response::from_json(&entries)?.with_cors(&create_cors(&req)?)
 }
 
 pub async fn get_ping(_req: Request, _ctx: RouteContext<()>) -> worker::Result<Response> {
